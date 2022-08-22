@@ -36,7 +36,7 @@ A sample script that adds the string "prefix:" to name of bones.
 A script that rename the bone of unity name to/from the mixamo name.
 
 I created this script for the Mixamo add-on for Blender.
-The procedures is described in [Convert bones for Mixamo add-on for Blender](#Convert-bones-for-Mixamo-add-on-for-Blender).
+The procedures is described in [Convert Unity bones for Mixamo add-on for Blender](#Convert-Unity-bones-for-Mixamo-add-on-for-Blender).
 
 This script logic is based on
     https://github.com/MinaPecheux/BlenderPlugins/blob/master/Rigging/MixamoRigRenamer.py
@@ -52,7 +52,7 @@ the following conversions are available.
 
 Note : the conversions are executed after renaming.
 
-### Convert bones for Mixamo add-on for Blender
+### Convert Unity bones for Mixamo add-on for Blender
 To use the [Mixamo add-on for Blender](https://substance3d.adobe.com/plugins/mixamo-in-blender/) for the model set up for Unity, follow these procedures.
 
 1. Download the Mixamo model by fbx
