@@ -1,2 +1,2 @@
-def rename(context, name):
-    return 'prefix:'+name
+def rename(context, bone_name):
+    return 'prefix:'+bone_name

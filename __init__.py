@@ -55,19 +55,19 @@ class PyBoneConvertorPropertyGroup(bpy.types.PropertyGroup):
     source_armature: bpy.props.PointerProperty(type=bpy.types.Object, name='Source Armature')
     align_roll: bpy.props.BoolProperty(
         name='Align Roll',
-        description='Align roll of bones to Source Armature'
+        description='Align the roll of bones to the Source Armature'
     )
     add_not_existing_bones: bpy.props.BoolProperty(
         name='Add not existing bones',
-        description='Add bones that exist in the Source Armature but not in the selected armature'
+        description='Add bones that exist in the Source Armature but not in the target armature'
     )
     remove_not_existing_bones: bpy.props.BoolProperty(
         name='Remove not existing bones',
-        description='Remove bones that exist in the selected armature but not in the Source Armature'
+        description='Remove bones that exist in the target armature but not in the Source Armature'
     )
     change_not_existing_bones_to_layers: bpy.props.BoolVectorProperty(
         name='Layers',
-        description='Change bones to layers. The bones exist in the selected armature but not in the Source Armature',
+        description='Change the bones to the layers. The bones exist in the target armature but not in the Source Armature',
         subtype='LAYER',
         size=32,
     )
@@ -288,15 +288,12 @@ class VIEW3D_PT_Source(_PanelBase, bpy.types.Panel):
 # REGISTER
 
 
-panels = [
-    VIEW3D_PT_PyBoneConvertor,
-    VIEW3D_PT_Source,
-]
 classes = [
     PyBoneConvertorPropertyGroup,
     OBJECT_OT_pybone_convertor_convert,
+    VIEW3D_PT_PyBoneConvertor,
+    VIEW3D_PT_Source,
 ]
-classes += panels
 
 
 def register():
@@ -305,8 +302,10 @@ def register():
         register_class(cls)
     bpy.types.Scene.pybone_convertor_props = bpy.props.PointerProperty(type=PyBoneConvertorPropertyGroup)
 
+
 def unregister():
     from bpy.utils import unregister_class
+    del bpy.types.Scene.pybone_convertor_props
     for cls in reversed(classes):
         unregister_class(cls)
 
