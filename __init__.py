@@ -7,7 +7,7 @@ bl_info = {
     'name': 'PyBone Convertor',
     'blender': (3, 2, 1),
     'location': '3D View > Right side panel > Misc > PyBone Convertor',
-    'description': 'Convert bones using user defined python script',
+    'description': 'Convert bones using the user defined python script',
     'category': 'Rigging'
 }
 
@@ -52,7 +52,10 @@ class PyBoneConvertorPropertyGroup(bpy.types.PropertyGroup):
         description='User defined python script path.\n"${.}" will resolve to "this_addon_file_directory/presets"',
         subtype='FILE_PATH',
     )
-    source_armature: bpy.props.PointerProperty(type=bpy.types.Object, name='Source Armature')
+    source_armature: bpy.props.PointerProperty(
+        type=bpy.types.Object,
+        name='Source Armature'
+    )
     align_roll: bpy.props.BoolProperty(
         name='Align Roll',
         description='Align the roll of bones to the Source Armature'
@@ -79,7 +82,7 @@ class PyBoneConvertorPropertyGroup(bpy.types.PropertyGroup):
 
 class OBJECT_OT_pybone_convertor_convert(bpy.types.Operator):
     bl_idname = 'object.pybone_convertor_convert'
-    bl_label = 'Convert bones using user defined python script'
+    bl_label = 'Convert bones using the user defined python script'
     bl_options = {'UNDO', 'REGISTER'}
 
     @classmethod
@@ -92,8 +95,8 @@ class OBJECT_OT_pybone_convertor_convert(bpy.types.Operator):
     def execute(self, context):
         props = bpy.context.scene.pybone_convertor_props
         armature = bpy.context.active_object
-        script_path = self._get_script_path(props.script)
-        if script_path != '':
+        if props.script != '':
+            script_path = self._get_script_path(props.script)
             if not os.path.exists(script_path):
                 self.report({'ERROR'}, 'Script file not exist:'+script_path)
                 return {'CANCELLED'}
@@ -137,8 +140,8 @@ class OBJECT_OT_pybone_convertor_convert(bpy.types.Operator):
             if bone_name not in dst_bones:
                 continue
             dst_bone = dst_bones[bone_name]
-            # matrix that transforms a point from destination bone space into destination armature space.
-            # the pose is same as the source bone viewed from world space.
+            # matrix that transforms a point from dst bone space into dst armature space.
+            # the pose is same as the src bone viewed from world space.
             target_matrix = (
                 dst_armature.matrix_world.inverted() @
                 src_armature.matrix_world @
@@ -166,15 +169,15 @@ class OBJECT_OT_pybone_convertor_convert(bpy.types.Operator):
 
             dst_bone = dst_bones.new(bone_name)
             dst_bone.parent = dst_parent_bone
-            # matrix that transforms a point from destination bone space into destination armature space.
-            # the pose is same as the source bone viewed from parent bone space.
+            # matrix that transforms a point from dst bone space into dst armature space.
+            # the pose is same as the src bone viewed from parent bone space.
             target_matrix = (
                 dst_parent_bone.matrix @ 
                 src_parent_bone.matrix_local.inverted() @
                 src_bone.matrix_local
             )
             if src_bone.children:
-                # divide destination parent bone in half
+                # divide dst parent bone in half
                 dst_parent_bone.length /= 2
                 dst_bone.head = dst_parent_bone.tail
                 dst_bone.tail = dst_bones[src_bone.children[0].name].head
