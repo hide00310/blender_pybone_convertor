@@ -42,6 +42,36 @@ def _get_y_axis_roll_matrix(dst_bone_matrix, target_matrix):
     ])
     return R
 
+# =============================================
+# PROPERTIES
+
+
+class PyBoneConvertorPropertyGroup(bpy.types.PropertyGroup):
+    script: bpy.props.StringProperty(
+        name='Script',
+        description='User defined python script path.\n"${.}" will resolve to "this_addon_file_directory/presets"',
+        subtype='FILE_PATH',
+    )
+    source_armature: bpy.props.PointerProperty(type=bpy.types.Object, name='Source Armature')
+    align_roll: bpy.props.BoolProperty(
+        name='Align Roll',
+        description='Align roll of bones to Source Armature'
+    )
+    add_not_existing_bones: bpy.props.BoolProperty(
+        name='Add not existing bones',
+        description='Add bones that exist in the Source Armature but not in the selected armature'
+    )
+    remove_not_existing_bones: bpy.props.BoolProperty(
+        name='Remove not existing bones',
+        description='Remove bones that exist in the selected armature but not in the Source Armature'
+    )
+    change_not_existing_bones_to_layers: bpy.props.BoolVectorProperty(
+        name='Layers',
+        description='Change bones to layers. The bones exist in the selected armature but not in the Source Armature',
+        subtype='LAYER',
+        size=32,
+    )
+
 
 # =============================================
 # OPERATOR CLASSES
@@ -56,36 +86,37 @@ class OBJECT_OT_pybone_convertor_convert(bpy.types.Operator):
     def poll(cls, context):
         return (
             context.active_object and
-            context.active_object.type == 'ARMATURE' and
-            context.scene.pybone_convertor_script != ''
+            context.active_object.type == 'ARMATURE'
         )
 
     def execute(self, context):
-        scene = bpy.context.scene
+        props = bpy.context.scene.pybone_convertor_props
         armature = bpy.context.active_object
-        script_path = self._get_script_path(scene.pybone_convertor_script)
-        if not os.path.exists(script_path):
-            self.report({'ERROR'}, 'Script file not exist:'+script_path)
-            return {'CANCELLED'}
+        script_path = self._get_script_path(props.script)
+        if script_path != '':
+            if not os.path.exists(script_path):
+                self.report({'ERROR'}, 'Script file not exist:'+script_path)
+                return {'CANCELLED'}
 
-        script_module = _import_module('script_module', script_path)
+            script_module = _import_module('script_module', script_path)
 
-        if not hasattr(script_module, 'rename'):
-            self.report({'ERROR'}, 'Function "rename(context, name)" is not defined')
-            return {'CANCELLED'}
+            if not hasattr(script_module, 'rename'):
+                self.report({'ERROR'}, 'Function "rename(context, name)" is not defined')
+                return {'CANCELLED'}
 
-        self._rename_bones(context, armature, script_module)
+            self._rename_bones(context, armature, script_module)
 
-        src_armature = scene.pybone_convertor_source_armature
-        if scene.pybone_convertor_align_roll:
-            self._align_roll(armature, src_armature)
-        if scene.pybone_convertor_add_not_existing_bones:
-            self._add_not_existing_bones(armature, src_armature)
-        if scene.pybone_convertor_remove_not_existing_bones:
-            self._remove_not_existing_bones(armature, src_armature)
-        if any(scene.pybone_convertor_change_not_existing_bones_to_layers):
-            layers = scene.pybone_convertor_change_not_existing_bones_to_layers
-            self._change_not_existing_bones_to_layers(armature, src_armature, layers)
+        src_armature = props.source_armature
+        if src_armature:
+            if props.align_roll:
+                self._align_roll(armature, src_armature)
+            if props.add_not_existing_bones:
+                self._add_not_existing_bones(armature, src_armature)
+            if props.remove_not_existing_bones:
+                self._remove_not_existing_bones(armature, src_armature)
+            layers = props.change_not_existing_bones_to_layers
+            if any(layers):
+                self._change_not_existing_bones_to_layers(armature, src_armature, layers)
 
         return {'FINISHED'}
 
@@ -98,8 +129,6 @@ class OBJECT_OT_pybone_convertor_convert(bpy.types.Operator):
             bone.name = script_module.rename(context, bone.name)
 
     def _align_roll(self, dst_armature, src_armature):
-        if not src_armature or not dst_armature:
-            return
         bpy.ops.object.mode_set(mode='EDIT')
         dst_bones = dst_armature.data.edit_bones
         src_bones = src_armature.data.bones
@@ -122,8 +151,6 @@ class OBJECT_OT_pybone_convertor_convert(bpy.types.Operator):
             bpy.context.view_layer.update()
 
     def _add_not_existing_bones(self, dst_armature, src_armature):
-        if not src_armature or not dst_armature:
-            return
         bpy.ops.object.mode_set(mode='EDIT')
         dst_bones = dst_armature.data.edit_bones
         src_bones = src_armature.data.bones
@@ -164,8 +191,6 @@ class OBJECT_OT_pybone_convertor_convert(bpy.types.Operator):
             bpy.context.view_layer.update()
 
     def _remove_not_existing_bones(self, dst_armature, src_armature):
-        if not src_armature or not dst_armature:
-            return
         bpy.ops.object.mode_set(mode='EDIT')
         dst_bones = dst_armature.data.edit_bones
         src_bones = src_armature.data.bones
@@ -175,8 +200,6 @@ class OBJECT_OT_pybone_convertor_convert(bpy.types.Operator):
                 dst_bones.remove(dst_bones[bone_name])
 
     def _change_not_existing_bones_to_layers(self, dst_armature, src_armature, layers):
-        if not src_armature or not dst_armature:
-            return
         bpy.ops.object.mode_set(mode='OBJECT')
         dst_bones = dst_armature.data.bones
         src_bones = src_armature.data.bones
@@ -196,25 +219,18 @@ class _PanelBase:
 
     columns = []
 
-    @classmethod
-    def register(cls):
-        for col in cls.columns:
-            if 'prop' in col:
-                setattr(bpy.types.Scene, col['name'], col['prop'])
-
-    @classmethod
-    def unregister(cls):
-        for col in cls.columns:
-            if 'prop' in col:
-                delattr(bpy.types.Scene, col['name'])
-
     def draw(self, context):
         col_layout = self.layout.column(align=True)
         for col in self.columns:
             if 'label' in col:
-                col_layout.row().label(text=col['label'])
+                text = (
+                    col['label'](context)
+                    if callable(col['label'])
+                    else col['label']
+                )
+                col_layout.row().label(text=text)
             if 'prop' in col:
-                col_layout.row().prop(context.scene, col['name'])
+                col_layout.row().prop(context.scene.pybone_convertor_props, col['prop'])
             if 'operator' in col:
                 col_layout.operator(col['operator'].bl_idname, text=col['text'])
         col_layout.separator()
@@ -225,12 +241,17 @@ class VIEW3D_PT_PyBoneConvertor(_PanelBase, bpy.types.Panel):
 
     columns = [
         {
-            'name': 'pybone_convertor_script',
-            'prop': bpy.props.StringProperty(
-                name='Script',
-                description='User defined python script path.\n"${.}" will resolve to "this_addon_file_directory/presets"',
-                subtype='FILE_PATH',
-            ),
+            'label': lambda context: (
+                'Target Armature: ' + context.active_object.name
+                if (
+                    context.active_object and
+                    context.active_object.type == 'ARMATURE'
+                )
+                else 'Target Armature: None'
+            )
+        },
+        {
+            'prop': 'script',
         },
         {
             'operator': OBJECT_OT_pybone_convertor_convert,
@@ -245,41 +266,23 @@ class VIEW3D_PT_Source(_PanelBase, bpy.types.Panel):
 
     columns = [
         {
-            'name': 'pybone_convertor_source_armature',
-            'prop': bpy.props.PointerProperty(type=bpy.types.Object, name='Source Armature'),
+            'prop': 'source_armature',
         },
         {
-            'name': 'pybone_convertor_align_roll',
-            'prop': bpy.props.BoolProperty(
-                name='Align Roll',
-                description='Align roll of bones to Source Armature'
-            ),
+            'prop': 'align_roll',
         },
         {
-            'name': 'pybone_convertor_add_not_existing_bones',
-            'prop': bpy.props.BoolProperty(
-                name='Add not existing bones',
-                description='Add bones that exist in the Source Armature but not in the selected armature'
-            ),
+            'prop': 'add_not_existing_bones',
         },
         {
-            'name': 'pybone_convertor_remove_not_existing_bones',
-            'prop': bpy.props.BoolProperty(
-                name='Remove not existing bones',
-                description='Remove bones that exist in the selected armature but not in the Source Armature'
-            ),
+            'prop': 'remove_not_existing_bones',
         },
         {
-            'name': 'pybone_convertor_change_not_existing_bones_to_layers',
+            'prop': 'change_not_existing_bones_to_layers',
             'label': 'Change not existing bones to layers',
-            'prop': bpy.props.BoolVectorProperty(
-                name='Layers',
-                description='Change bones to layers. The bones exist in the selected armature but not in the Source Armature',
-                subtype='LAYER',
-                size=32,
-            ),
         },
     ]
+
 
 # =============================================
 # REGISTER
@@ -290,6 +293,7 @@ panels = [
     VIEW3D_PT_Source,
 ]
 classes = [
+    PyBoneConvertorPropertyGroup,
     OBJECT_OT_pybone_convertor_convert,
 ]
 classes += panels
@@ -299,7 +303,7 @@ def register():
     from bpy.utils import register_class
     for cls in classes:
         register_class(cls)
-
+    bpy.types.Scene.pybone_convertor_props = bpy.props.PointerProperty(type=PyBoneConvertorPropertyGroup)
 
 def unregister():
     from bpy.utils import unregister_class
