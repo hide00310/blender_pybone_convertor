@@ -7,6 +7,8 @@ _unity_to_mix_dict = {
     'LowerLeg': 'Leg',
     'Toes': 'ToeBase',
 }
+for i, name in enumerate(['Proximal', 'Intermediate', 'Distal']):
+    _unity_to_mix_dict['Little' + name] = f'HandPinky{i+1}'
 # $ is regex mark. e.g. "ThumbProximal" to "HandThumb1".
 for i, name in enumerate(['Proximal', 'Intermediate', 'Distal']):
     _unity_to_mix_dict['$' + name] = f'Hand${i+1}'

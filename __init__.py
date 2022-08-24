@@ -187,8 +187,9 @@ class OBJECT_OT_pybone_convertor_convert(bpy.types.Operator):
                 for child in src_bone.children:
                     dst_bones[child.name].parent = dst_bone
             else:
+                scale_factor = src_armature.scale[0]
                 dst_bone.head = dst_parent_bone.tail
-                dst_bone.length = src_bone.length
+                dst_bone.length = src_bone.length * scale_factor
                 # only copy target rotation
                 dst_bone.matrix = Matrix.LocRotScale(dst_parent_bone.tail, target_matrix.to_quaternion(), None)
             bpy.context.view_layer.update()
